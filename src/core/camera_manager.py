@@ -2,7 +2,7 @@
 # FILE: src/core/camera_manager.py
 # FIXES ALL FPS/RESOLUTION ISSUES + FUTURE ENDOSCOPE COMPATIBILITY
 
-from PySide6.QtCore import QObject, Signal, QThread, QMutex, QTimer
+from PySide6.QtCore import QObject, Signal, QThread, QMutex, QTimer, QMetaObject, Qt
 from PySide6.QtGui import QImage
 import cv2
 import logging
@@ -788,8 +788,16 @@ class AdaptiveCameraManager(QObject):
                     available = self.get_available_cameras()
                 except Exception as disc_err:
                     self.logger.error(f"Camera discovery failed: {disc_err}")
-                # Finish on the Qt thread so signals/threads are wired safely
-                QTimer.singleShot(0, lambda: self._start_camera_thread(available))
+                # Finish on the Qt (main) thread so signals/threads are wired safely.
+                # Use QTimer.singleShot with a receiver to ensure it posts to the receiver's thread.
+                def start_on_main():
+                    try:
+                        self._start_camera_thread(available)
+                    except Exception as start_err:
+                        self.logger.error(f"Failed to start camera thread after discovery: {start_err}")
+                        self._init_in_progress = False
+
+                QTimer.singleShot(0, self, start_on_main)
 
             threading.Thread(target=discover_and_start, daemon=True).start()
         except Exception as e:
