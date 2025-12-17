@@ -92,8 +92,10 @@ class MenuSystem(QMenuBar):
         """Setup Camera menu with device selection and capture options"""
         camera_menu = self.addMenu("&Camera")
         
-        device_menu = QMenu("Select &Device", self)
-        camera_menu.addMenu(device_menu)
+        # Keep a reference + objectName so we can update later
+        self.device_menu = QMenu("Select &Device", self)
+        self.device_menu.setObjectName("device_menu")
+        camera_menu.addMenu(self.device_menu)
         
         self.camera_group = QActionGroup(self)
         self.camera_group.setExclusive(True) # Ensure only one camera can be selected
@@ -129,9 +131,8 @@ class MenuSystem(QMenuBar):
         
         self.camera_group.addAction(device_action)
         
-        device_menu = self.findChild(QMenu, "Select &Device")
-        if device_menu:
-            device_menu.addAction(device_action)
+        if hasattr(self, "device_menu") and self.device_menu:
+            self.device_menu.addAction(device_action)
         
         # Optional: set first added camera as active by default
         # if not any(act.isChecked() for act in self.camera_group.actions()):
@@ -224,7 +225,7 @@ class MenuSystem(QMenuBar):
         Args:
             camera_list: List of (id, name) tuples for available cameras
         """
-        device_menu = self.findChild(QMenu, "Select &Device")
+        device_menu = getattr(self, "device_menu", None)
         if not device_menu:
             return
 
